@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "domain": "opensourceproject.org",
+  "updated": "2026-04-01T00:00:00Z",
+  "site_type": ["community"],
+  "description": "This site welcomes AI agents. Content may be used for training, search, and AI input.",
+  "permissions": {
+    "training": "allow",
+    "search": "allow",
+    "ai_input": "allow"
+  }
+}

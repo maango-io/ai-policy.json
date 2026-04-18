@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "domain": "shop.example.com",
+  "updated": "2026-04-01T00:00:00Z",
+  "site_type": ["ecommerce"],
+  "description": "AI agents may discover and recommend our products. Training on our product catalog is not permitted.",
+  "permissions": {
+    "training": "block",
+    "search": "allow",
+    "ai_input": "allow"
+  },
+  "bots": {
+    "blocked": ["Bytespider", "CCBot", "Google-Extended", "GPTBot", "img2dataset"],
+    "allowed": ["ChatGPT-User", "OAI-SearchBot", "PerplexityBot"]
+  },
+  "contact": "webmaster@shop.example.com"
+}

@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "domain": "healthcare.example.com",
+  "updated": "2026-04-01T00:00:00Z",
+  "site_type": ["regulated"],
+  "description": "This site does not permit AI agent access. All forms of AI crawling, training, search indexing, and content consumption are prohibited.",
+  "permissions": {
+    "training": "block",
+    "search": "block",
+    "ai_input": "block"
+  },
+  "contact": "compliance@healthcare.example.com"
+}

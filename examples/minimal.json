@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "domain": "example.com",
+  "permissions": {
+    "training": "block",
+    "search": "allow",
+    "ai_input": "allow"
+  }
+}

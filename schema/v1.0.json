@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/maango-io/ai-policy/main/schema/v1.0.json",
+  "title": "AI Policy Manifest",
+  "description": "Schema for ai-policy.json v1.0: machine-readable AI agent permissions for websites.",
+  "type": "object",
+  "required": ["version", "domain", "permissions"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "The version of the ai-policy.json specification this file conforms to. This schema validates v1.x files, where x is any non-negative integer representing a minor version. Major version changes require a new schema.",
+      "pattern": "^1\\.[0-9]+$",
+      "examples": ["1.0", "1.1"]
+    },
+    "domain": {
+      "type": "string",
+      "description": "The fully qualified domain name this policy applies to, without protocol prefix or path. Validation here is a basic sanity check; agents SHOULD apply full RFC 1035 validation as needed.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]*\\.[a-zA-Z]{2,}$",
+      "minLength": 4,
+      "maxLength": 253,
+      "examples": ["example.com", "shop.example.com", "a.co"]
+    },
+    "schema": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL pointing to the JSON Schema definition for validation."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date and time this policy was last created or modified."
+    },
+    "site_type": {
+      "type": "array",
+      "description": "Tags describing the type of website. Informational, not prescriptive.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "examples": [["ecommerce"], ["blog", "community"]]
+    },
+    "description": {
+      "type": "string",
+      "description": "Plain-language summary of the policy. Informational only. MUST NOT be relied upon for compliance determination.",
+      "maxLength": 500
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Purpose-level permission declarations.",
+      "required": ["training", "search", "ai_input"],
+      "additionalProperties": false,
+      "properties": {
+        "training": {
+          "type": "string",
+          "enum": ["allow", "block"],
+          "description": "Whether AI model providers may use this domain's content as training data."
+        },
+        "search": {
+          "type": "string",
+          "enum": ["allow", "block"],
+          "description": "Whether AI search engines may index and reference this domain's content."
+        },
+        "ai_input": {
+          "type": "string",
+          "enum": ["allow", "block"],
+          "description": "Whether AI systems may use this domain's content as input at inference time for real-time response generation."
+        }
+      }
+    },
+    "bots": {
+      "type": "object",
+      "description": "Explicit lists of bot user-agent names that are blocked or allowed.",
+      "properties": {
+        "blocked": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Bot user-agent names that SHOULD NOT access this domain."
+        },
+        "allowed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Bot user-agent names that MAY access this domain, subject to the permissions object."
+        }
+      },
+      "additionalProperties": false
+    },
+    "contact": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address for AI-related policy inquiries."
+    },
+    "policy_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to a human-readable policy page."
+    },
+    "registry": {
+      "type": "string",
+      "description": "The permissions registry service managing this domain's policy. Agents SHOULD ignore this field."
+    },
+    "verification": {
+      "type": "string",
+      "description": "Opaque verification token used by the generating service. Agents SHOULD ignore this field."
+    },
+    "generated_by": {
+      "type": "string",
+      "description": "Informational. Identifies the tool or service that generated this file."
+    },
+    "capabilities": {
+      "description": "Reserved for future versions. V1 processors MUST ignore this field. Type constraints will be defined in the future version that introduces this field."
+    }
+  }
+}
