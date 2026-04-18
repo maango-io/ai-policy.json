@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/maango-io/ai-policy/main/schema/v1.0.json",
+  "$id": "https://raw.githubusercontent.com/maango-io/ai-policy.json/main/schema/v1.0.json",
   "title": "AI Policy Manifest",
   "description": "Schema for ai-policy.json v1.0: machine-readable AI agent permissions for websites.",
   "type": "object",
@@ -33,13 +33,15 @@
     },
     "site_type": {
       "type": "array",
-      "description": "Tags describing the type of website. Informational, not prescriptive.",
+      "description": "Tags describing the type of website. Informational, not prescriptive. Values MUST be either from the closed vocabulary below or follow the 'x-' extension pattern for custom types.",
       "items": {
-        "type": "string",
-        "minLength": 1
+        "oneOf": [
+          {"enum": ["ecommerce", "blog", "saas", "portfolio", "education", "regulated", "community", "personal", "news", "forum", "media", "government", "nonprofit"]},
+          {"type": "string", "pattern": "^x-[a-z0-9-]+$"}
+        ]
       },
       "uniqueItems": true,
-      "examples": [["ecommerce"], ["blog", "community"]]
+      "examples": [["ecommerce"], ["blog", "community"], ["media", "x-news-aggregator"]]
     },
     "description": {
       "type": "string",
@@ -98,20 +100,17 @@
       "format": "uri",
       "description": "URL to a human-readable policy page."
     },
-    "registry": {
-      "type": "string",
-      "description": "The permissions registry service managing this domain's policy. Agents SHOULD ignore this field."
-    },
-    "verification": {
-      "type": "string",
-      "description": "Opaque verification token used by the generating service. Agents SHOULD ignore this field."
-    },
     "generated_by": {
       "type": "string",
       "description": "Informational. Identifies the tool or service that generated this file."
     },
     "capabilities": {
       "description": "Reserved for future versions. V1 processors MUST ignore this field. Type constraints will be defined in the future version that introduces this field."
+    }
+  },
+  "patternProperties": {
+    "^x-[a-z0-9-]+$": {
+      "description": "Extension field for vendor-specific or experimental use. Agents MUST ignore fields they do not recognize."
     }
   }
 }

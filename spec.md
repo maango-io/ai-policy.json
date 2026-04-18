@@ -46,7 +46,7 @@ Existing web standards control what crawlers can access and what content can be 
 The current web permissions landscape for AI agents is fragmented across multiple standards, none of which individually provides a complete picture:
 
 - **robots.txt** (RFC 9309) controls which bots can access which paths, but has no concept of access purpose. Blocking GPTBot prevents both training crawls and real-time user-initiated browsing.
-- **Cloudflare Content Signals** introduce purpose-level categories (`search`, `ai-train`, `ai-input`) as extensions to robots.txt, but are limited to sites using Cloudflare's infrastructure and cannot express permissions beyond three content-usage categories.
+- **Cloudflare Content Signals** introduce purpose-level categories (`search`, `ai-train`, `ai-input`) as extensions to robots.txt. The vocabulary is open and any site can deploy it in their own robots.txt, but the format is limited to three categories and has no structured bot-specific directives, metadata, or description fields.
 - **TDMRep** (W3C) provides EU-specific text and data mining opt-outs via HTTP headers but has minimal adoption.
 - **ai.txt** proposes purpose-level permissions but lacks structured formatting, bot-specific directives, and significant adoption.
 - **llms.txt** provides content structure for LLM consumption but does not express permissions.
@@ -113,7 +113,7 @@ The file SHOULD be accessible over HTTPS. HTTP-only hosting is permitted but not
 
 If the file is not found at the well-known location, agents MAY check for the following fallbacks, in order:
 
-1. **HTTP response header:** `AI-Policy: /.well-known/ai-policy.json` (or a full URL) on any HTTP response from the domain.
+1. **HTTP response header:** `AI-Policy: /.well-known/ai-policy.json` (or a full URL) returned on any same-origin HTTP response from the domain, including the homepage response (`GET /`). The header value MUST be a path or URL on the same origin as the response; cross-origin header values MUST be ignored by agents.
 2. **robots.txt directive:** A line reading `AI-Policy: /.well-known/ai-policy.json` within the domain's robots.txt file.
 3. **Registry lookup:** A query to a public permissions registry (such as the Maango Registry API) that may have the domain's policy on file.
 
@@ -122,6 +122,8 @@ These fallback mechanisms are OPTIONAL for both publishers and consumers.
 ### 3.3 Caching
 
 Agents SHOULD cache the file for a reasonable period (RECOMMENDED: 24 hours minimum, 7 days maximum) to avoid excessive requests to the domain. Agents SHOULD respect standard HTTP caching headers (`Cache-Control`, `ETag`, `Last-Modified`) if present.
+
+**Negative caching.** When an agent fetches `/.well-known/ai-policy.json` and receives a 404 response, the agent SHOULD cache the absence of the file for at least 1 hour and no more than 24 hours before attempting to refetch. This prevents excessive requests to domains that have not deployed ai-policy.json while allowing timely discovery when a domain adds the file.
 
 ---
 
@@ -149,7 +151,7 @@ The smallest valid `ai-policy.json` contains only the required fields:
 
 ```json
 {
-  "schema": "https://raw.githubusercontent.com/maango-io/ai-policy/main/schema/v1.0.json",
+  "schema": "https://raw.githubusercontent.com/maango-io/ai-policy.json/main/schema/v1.0.json",
   "version": "1.0",
   "domain": "example.com",
   "updated": "2026-04-15T10:00:00Z",
@@ -188,8 +190,8 @@ The smallest valid `ai-policy.json` contains only the required fields:
   },
   "contact": "ai-policy@example.com",
   "policy_url": "https://example.com/ai-policy",
-  "registry": "maango.io",
-  "verification": "maango_vf_abc123",
+  "x-maango-registry": "maango.io",
+  "x-maango-verification": "maango_vf_abc123",
   "generated_by": "maango.io"
 }
 ```
@@ -202,7 +204,7 @@ The smallest valid `ai-policy.json` contains only the required fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `version` | string | The version of this specification the file conforms to. MUST be `"1.0"` for this version. |
+| `version` | string | The version of this specification the file conforms to, in the form `"major.minor"`. For files conforming to this document, the value is `"1.0"`. |
 | `domain` | string | The fully qualified domain name this policy applies to, without protocol prefix (e.g., `"example.com"`, not `"https://example.com"`). |
 | `permissions` | object | The three permission declarations. See Section 6. |
 
@@ -212,21 +214,32 @@ The smallest valid `ai-policy.json` contains only the required fields:
 |-------|------|-------------|
 | `schema` | string (URI) | URL pointing to the JSON Schema definition for validation. |
 | `updated` | string (ISO 8601) | The date and time this policy was last created or modified. RECOMMENDED. |
-| `site_type` | array of strings | One or more tags describing the type of website. Informational, not prescriptive. Suggested values: `"ecommerce"`, `"blog"`, `"saas"`, `"portfolio"`, `"education"`, `"regulated"`, `"community"`, `"personal"`. Custom values are permitted. |
+| `site_type` | array of strings | Tags describing the type of website. Informational, not prescriptive. Values MUST be from the closed vocabulary (`ecommerce`, `blog`, `saas`, `portfolio`, `education`, `regulated`, `community`, `personal`, `news`, `forum`, `media`, `government`, `nonprofit`) or follow the `x-` extension pattern for custom values (e.g., `x-membership-site`). |
 | `description` | string | A plain-language summary of the policy. **This field is informational only and MUST NOT be relied upon for compliance determination.** Agents determining compliance MUST use the structured permission fields. Maximum RECOMMENDED length: 500 characters. |
 | `bots` | object | Explicit lists of bot user-agent names that are blocked or allowed. See Section 7. |
 | `contact` | string (email) | An email address for AI-related policy inquiries. Domain owners SHOULD use a role-based address (e.g., `ai-policy@example.com`) rather than a personal email. |
 | `policy_url` | string (URI) | URL to a human-readable policy page. The URL need not be on the same domain as this file. |
-| `registry` | string | The permissions registry service managing this domain's policy. Used by generating services for domain verification and policy management. Agents SHOULD ignore this field when determining permissions. |
-| `verification` | string | An opaque verification token used by the generating service to match this file to a policy creation session. Agents SHOULD ignore this field when determining permissions. |
 | `generated_by` | string | Informational. Identifies the tool or service that generated this file. Agents MUST NOT use this field for permission determination. |
-| `capabilities` | object | Reserved for future versions. V1 processors MUST ignore this field if present. Future versions will use this field for action-level permissions and agent identity requirements. |
+| `capabilities` | any | Reserved for future versions. V1 processors MUST ignore this field if present. Type constraints and semantics will be defined by the future version that introduces this field. See Section 14 for direction of travel. |
 
 ### 5.3 Unknown Fields
 
 Agents encountering fields not defined in this specification MUST ignore them. This ensures forward compatibility as new fields are added in future versions.
 
 Publishers MUST NOT add fields that contradict the semantics of defined fields. The `permissions` object is authoritative.
+
+### 5.4 Extension Fields
+
+The specification reserves field names matching the pattern `^x-[a-z0-9-]+$` for vendor-specific, experimental, or registry-specific use. Examples include:
+
+- `x-maango-registry`: The Maango registry service managing this domain's policy
+- `x-maango-verification`: Opaque verification token used by Maango's Policy Builder
+- `x-cloudflare-*`: Reserved for potential Cloudflare extensions
+- `x-custom-*`: Site owners MAY use this namespace for internal tracking
+
+Agents and other tools MUST ignore extension fields they do not recognize. Extension fields MUST NOT be used to determine permissions; the `permissions` object is authoritative.
+
+Registries operating ai-policy.json infrastructure SHOULD namespace their fields under `x-{registry-name}-*` to avoid collisions with other registries.
 
 ---
 
@@ -302,7 +315,21 @@ Both `blocked` and `allowed` are arrays of strings. Each string is a bot user-ag
 
 Arrays SHOULD be sorted alphabetically (case-insensitive) for consistency and readability.
 
-### 7.2 Semantics
+### 7.2 User-Agent Matching Rules
+
+Bot name matching follows the same conventions as RFC 9309 (Robots Exclusion Protocol):
+
+1. **Case-insensitive.** A listed name of `GPTBot` matches User-Agent strings containing `gptbot`, `GPTBot`, `GPTBOT`, etc.
+
+2. **Product token match.** The product token is the leading bot identifier in the User-Agent header, typically the portion before the first slash, space, or semicolon. For example, a User-Agent of `Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)` has a product token of `GPTBot`.
+
+3. **Exact token match.** Matching is against the full product token. Listing `GPT` does NOT match `GPTBot`; listing `GPTBot` does NOT match `GPTBotVariant`.
+
+4. **Declared tokens are authoritative.** Bots SHOULD use the product token they declare in their public documentation (for example, OpenAI documents `GPTBot` at https://platform.openai.com/docs/bots). Publishers SHOULD use these official tokens in their `bots` arrays rather than custom variations.
+
+Agents implementing robots.txt parsing can reuse their existing matching logic for ai-policy.json bot lists.
+
+### 7.3 Semantics
 
 The `bots` object provides explicit overrides for specific user agents. It does NOT function as a whitelist. The `permissions` object is the universal rule that applies to all bots; the `bots` lists fine-tune that rule for named exceptions.
 
@@ -312,11 +339,11 @@ The rules are:
 
 2. **The `blocked` list is an explicit reinforcement.** A bot listed in `blocked` SHOULD NOT access this domain for any purpose, regardless of what the `permissions` object allows. This is useful for naming specific training crawlers (GPTBot, CCBot, etc.) even when `training` is already `"block"` in `permissions`, to provide redundancy against bots that might ignore purpose-level semantics but respect explicit user-agent blocks.
 
-3. **The `allowed` list is an explicit exception.** A bot listed in `allowed` MAY access this domain even when the `permissions` object would block its use case. This is useful for naming specific user-facing agents (such as ChatGPT-User or PerplexityBot) that should always be able to access the content to serve real-time user queries. However, the `allowed` list does not grant blanket permission: a bot listed as `allowed` that intends to use content for a purpose that is `"block"` in `permissions` MUST NOT do so for that purpose. The `allowed` list grants access; the `permissions` object still constrains what can be done with that access, unless the specific use case is what the `allowed` listing is intended to grant.
+3. **The `allowed` list is an explicit reinforcement.** A bot listed in `allowed` MAY access this domain for any purpose the `permissions` object permits. The `allowed` list does not override the `permissions` object; it documents specific bots that should receive access where the `permissions` object allows that access. Version 1.0 does not support purpose-specific bot rules (e.g., allowing a specific bot for search but not training); this may be introduced in a future version.
 
 4. **A bot not listed in either array falls back to the `permissions` object.** Absence from the `allowed` list does NOT imply blocking. This design ensures that new AI agents emerging after the policy is published are handled sensibly based on what they do, without requiring the policy to be updated every time a new bot appears.
 
-### 7.3 Worked Example
+### 7.4 Worked Example
 
 Consider a blog that publishes the following policy:
 
@@ -348,7 +375,7 @@ The following scenarios illustrate how different bots are handled:
 
 - **A malicious scraper that ignores all permissions signals arrives.** The specification cannot stop it. Enforcement of the policy requires additional technical measures (WAF rules, bot management, rate limiting) or legal action. `ai-policy.json` expresses intent; it does not enforce it.
 
-### 7.4 When to Use Each Pattern
+### 7.5 When to Use Each Pattern
 
 **To block all AI access universally:** Set all three permissions to `"block"` and omit the `bots` object. Every bot, known or unknown, is blocked for every purpose. This is the pattern used by the regulated healthcare example in Section 13.
 
@@ -360,7 +387,7 @@ The following scenarios illustrate how different bots are handled:
 
 **To grant explicit exceptions to user-facing agents:** Add an `allowed` list naming bots that serve real-time user queries (ChatGPT-User, PerplexityBot, OAI-SearchBot). These bots will access the site even if their specific use case might otherwise be ambiguous.
 
-### 7.5 Conflict with robots.txt
+### 7.6 Conflict with robots.txt
 
 If a bot is listed as `allowed` in `ai-policy.json` but Disallowed in robots.txt, the bot SHOULD respect robots.txt for crawl access (as robots.txt is the established access control mechanism) and use `ai-policy.json` for purpose-level permissions.
 
@@ -501,6 +528,19 @@ Agents that frequently fetch the file could create excessive load. The caching r
 ### 11.5 Sensitive Information
 
 The `contact` field exposes an email address publicly. Domain owners should use a role-based address (e.g., `ai-policy@example.com`) rather than a personal email. The `contact` field is optional; domain owners who do not wish to expose any contact information may omit it.
+
+### 11.6 Domain Verification
+
+Agents and registries MUST verify that the `domain` field in ai-policy.json matches the host from which the file was fetched. This prevents spoofing attacks where a malicious actor hosts a file at `attacker.com/.well-known/ai-policy.json` claiming to represent another domain (e.g., `"domain": "nytimes.com"`).
+
+**Verification rules:**
+
+1. Comparison is case-insensitive and ignores trailing dots.
+2. The declared `domain` field MUST be an exact match for the fetch host. Subdomain matches are NOT permitted; a file served from `shop.example.com` MUST declare `domain: "shop.example.com"` exactly, not `domain: "example.com"`.
+3. Files whose `domain` field does not match the fetch host MUST be treated as invalid and MUST NOT be used to determine permissions for the claimed domain.
+4. Agents indexing ai-policy.json files into a registry or cache MUST perform this verification at fetch time, not at lookup time. A registry MUST NOT serve files whose declared domain did not match the host at the time of original fetch.
+
+This verification is fundamental to the integrity of the specification and applies to all conformant implementations.
 
 ---
 
